@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tp-wy"
+version = "0.2.1"
+requires-python = ">=3.9"
+description = "从项目文件（PRD / 规格 / README 等）中提取任务拆解模板，供 tasker 多智能体编排器的 LLM 拆分阶段使用"
+license = { file = "LICENSE" }
+dependencies = []
+
+[project.scripts]
+tp = "template.cli:main"
+
+[tool.setuptools]
+packages = ["template"]
