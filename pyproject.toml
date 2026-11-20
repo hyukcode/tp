@@ -12,6 +12,10 @@ dependencies = []
 
 [project.scripts]
 tp = "template.cli:main"
+tp-studio = "template.web:main"
 
 [tool.setuptools]
 packages = ["template"]
+
+[tool.setuptools.package-data]
+template = ["static/*.html", "static/assets/*.js", "static/assets/*.css"]

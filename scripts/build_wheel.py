@@ -15,6 +15,7 @@ import csv
 import hashlib
 import io
 import os
+import re
 import sys
 import zipfile
 from pathlib import Path
@@ -31,7 +32,7 @@ DIST = ROOT / "dist"
 # wheel 文件名 / dist-info 目录用下划线（PEP 427），METADATA Name 用连字符
 DIST_NAME = "tp_wy"
 META_NAME = "tp-wy"
-VERSION = "0.2.0"
+VERSION = re.search(r'^version\s*=\s*"([^\"]+)"', (ROOT / "pyproject.toml").read_text(), re.MULTILINE).group(1)
 DIST_INFO = f"{DIST_NAME}-{VERSION}.dist-info"
 
 
@@ -52,6 +53,7 @@ Tag: py3-none-any
 ENTRY_POINTS = """\
 [console_scripts]
 tp = template.cli:main
+tp-studio = template.web:main
 """
 
 
@@ -59,6 +61,7 @@ def _all_py_files() -> list[str]:
     out = []
     for p in sorted(PKG.rglob("*.py")):
         out.append(p.relative_to(ROOT).as_posix())
+    out.extend(p.relative_to(ROOT).as_posix() for p in sorted((PKG / "static").rglob("*")) if p.is_file())
     return out
 
 
@@ -68,6 +71,8 @@ def _hash(data: bytes) -> str:
 
 
 def build() -> Path:
+    if not (PKG / "static" / "index.html").exists() or not list((PKG / "static" / "assets").glob("*.js")):
+        raise RuntimeError("请先运行 npm ci --prefix frontend && npm run build --prefix frontend")
     DIST.mkdir(exist_ok=True)
     whl = DIST / f"{DIST_NAME}-{VERSION}-py3-none-any.whl"
     files = _all_py_files()

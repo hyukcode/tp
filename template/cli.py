@@ -10,15 +10,12 @@
 
 from __future__ import annotations
 
-import argparse
 import json
 import sys
 from pathlib import Path
 
 from . import __version__
-from .loader import load_directory, load_file
-from .extractor import extract_tasks
-from .converter import to_task_template
+from .importer import extract_template
 from .store import Store
 
 
@@ -99,13 +96,8 @@ def cmd_default(argv: list[str]) -> int:
     path = Path(path_str).expanduser().resolve()
     tags = [t.strip() for t in tags_str.split(",") if t.strip()] if tags_str else []
 
-    # 提取
-    if path.is_dir():
-        items, source, name = _extract_dir(path)
-    else:
-        items, source, name = _extract_file(path)
-
-    template = to_task_template(items, template_name=name, source_file=source)
+    template = extract_template(str(path))
+    name, source = template.template_name, template.source_file
 
     # --json：只输出不存储
     if json_only:
@@ -161,32 +153,6 @@ def cmd_show(name: str) -> int:
         return 1
     print(json.dumps(data, ensure_ascii=False, indent=2))
     return 0
-
-
-# ================================================================
-#  提取逻辑
-# ================================================================
-def _extract_file(path: Path) -> tuple[list[dict], str, str]:
-    content, file_type = load_file(path)
-    items = extract_tasks(content, file_type)
-    return items, str(path), path.stem or "unnamed"
-
-
-def _extract_dir(path: Path) -> tuple[list[dict], str, str]:
-    files = load_directory(path)
-    if not files:
-        raise FileNotFoundError(f"目录 {path} 中没有可读取的文件")
-
-    combined_parts: list[str] = []
-    all_items: list[dict] = []
-    for fpath, content, file_type in files:
-        combined_parts.append(f"# 文件: {fpath}\n\n{content}")
-        all_items.extend(extract_tasks(content, file_type))
-    combined = "\n\n---\n\n".join(combined_parts)
-    items = extract_tasks(combined, "markdown")
-    if not items:
-        items = all_items
-    return items, str(path), path.name or "unnamed"
 
 
 if __name__ == "__main__":

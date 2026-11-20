@@ -16,7 +16,6 @@ LLM 通过读取 _meta 中的 tags/desc/name 来决定调用哪个模板。
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -100,7 +99,7 @@ class Store:
 
     # ---- 读取 ----
     def list(self) -> list[dict]:
-        """列出所有已存储模板的 _meta 信息（只读第一层元数据）。"""
+        """列出所有已存储模板的 _meta 信息（返回顶层元数据）。"""
         result: list[dict] = []
         for f in sorted(self._dir.glob("*.json")):
             meta = self._read_meta(f)
@@ -157,7 +156,7 @@ class Store:
         """生成供 LLM 使用的模板目录摘要文本。"""
         items = self.list()
         if not items:
-            return "（无已存储的模板。用 `template store <file>` 存入模板。）"
+            return "（无已存储的模板。用 `tp <file>` 存入模板。）"
         lines = [f"共 {len(items)} 个模板可用："]
         for m in items:
             tags = ", ".join(m.get("tags") or [])
@@ -191,14 +190,8 @@ class Store:
     # ---- 内部 ----
     @staticmethod
     def _read_meta(fpath: Path) -> dict | None:
-        """快速读取文件第一层 _meta（不解析完整 JSON 的情况下）。
-
-        策略：读前几 KB，用简单正则提取 _meta 对象。
-        如果文件很大，这个方法远快于完整 JSON 解析。
-        """
+        """读取 JSON 并返回顶层 _meta。"""
         try:
-            head = fpath.read_text(encoding="utf-8")[:4096]
-            # 尝试完整 JSON 解析（文件通常 < 100KB，开销可接受）
             data = json.loads(fpath.read_text(encoding="utf-8"))
             return data.get("_meta")
         except (json.JSONDecodeError, OSError):

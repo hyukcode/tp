@@ -29,12 +29,11 @@ _TASK_LABEL = re.compile(
 
 def _extract_markdown(content: str) -> list[dict]:
     """按 Markdown 标题层级拆分：每个 ## 标题为一个潜在任务。
-    ### 子标题作为子描述；# 标题作为模板名。"""
+    ### 子标题作为子描述；# 标题仅作为区块边界。"""
     lines = content.splitlines()
     sections: list[dict] = []
     current: dict | None = None
     current_lines: list[str] = []
-    template_name = ""
 
     for line in lines:
         m = _MD_HEADING.match(line)
@@ -42,12 +41,11 @@ def _extract_markdown(content: str) -> list[dict]:
             level = len(m.group(1))
             title = m.group(2).strip()
             # 保存前一个 section（即使没有正文也保留标题）
-            if current is not None:
+            if current is not None and level <= 2:
                 _finalize_task(current, current_lines)
                 sections.append(current)
 
             if level == 1:
-                template_name = template_name or title
                 current = None
                 current_lines = []
             elif level == 2:
@@ -67,10 +65,6 @@ def _extract_markdown(content: str) -> list[dict]:
     if current is not None:
         _finalize_task(current, current_lines)
         sections.append(current)
-
-    # 默认无模板名时从首行取
-    if not template_name:
-        template_name = (sections[0]["title"] if sections else "未命名模板")
 
     return sections
 
@@ -135,21 +129,16 @@ def _clean_section_body(lines: list[str]) -> str:
 
 # ---- 代码文件 ----
 def _extract_code(content: str, file_type: str) -> list[dict]:
-    """从代码文件中提取函数/类签名和 docstring 作为任务参考。"""
-    items: list[dict] = []
-
+    """从支持语言的符号名生成任务参考，其他语言按文本处理。"""
     if file_type == "python":
-        items = _extract_python(content)
-    elif file_type in ("javascript", "typescript"):
-        items = _extract_js_ts(content)
-    elif file_type == "go":
-        items = _extract_go(content)
-    elif file_type == "rust":
-        items = _extract_rust(content)
-    else:
-        items = _extract_generic_code(content)
-
-    return items
+        return _extract_python(content)
+    if file_type in ("javascript", "typescript"):
+        return _extract_js_ts(content)
+    if file_type == "go":
+        return _extract_go(content)
+    if file_type == "rust":
+        return _extract_rust(content)
+    return _extract_text(content)
 
 
 _PY_DEF = re.compile(
@@ -219,11 +208,6 @@ def _extract_rust(content: str) -> list[dict]:
     return items[:30]
 
 
-def _extract_generic_code(content: str) -> list[dict]:
-    # 回退：按空行分段
-    return _extract_text(content)
-
-
 # ---- 结构化文件 ----
 def _extract_structured(content: str, file_type: str) -> list[dict]:
     """从 JSON/YAML/TOML 中提取顶层 key 作为任务参考。"""
@@ -268,7 +252,7 @@ def _extract_text(content: str) -> list[dict]:
             paragraphs.append(text)
 
     items: list[dict] = []
-    for i, para in enumerate(paragraphs[:20]):  # 最多 20 个
+    for para in paragraphs[:20]:  # 最多 20 个
         # 取首句作为标题
         first_sentence = para.split("。")[0].split(".")[0].strip()[:80]
         items.append({

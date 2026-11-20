@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+from .importer import extract_template
 from .models import SuggestedTask, TaskTemplate
 from .loader import load_file, load_files, load_directory
 from .extractor import extract_tasks
@@ -58,52 +59,3 @@ __all__ = [
     "remove_template",
     "catalog_for_llm",
 ]
-
-
-def extract_template(
-    path: str,
-    *,
-    template_name: str = "",
-    extra_context: str = "",
-) -> TaskTemplate:
-    """从文件或目录路径提取任务拆解模板。
-
-    一键函数：文件加载 → 任务提取 → 模板转换。
-    """
-    import os
-    from pathlib import Path
-
-    p = Path(path).expanduser().resolve()
-
-    if p.is_dir():
-        files = load_directory(p)
-        if not files:
-            raise FileNotFoundError(f"目录 {p} 中没有可读取的文件")
-        combined_parts: list[str] = []
-        all_items: list[dict] = []
-        for fpath, content, file_type in files:
-            combined_parts.append(f"# 文件: {fpath}\n\n{content}")
-            all_items.extend(extract_tasks(content, file_type))
-        combined = "\n\n---\n\n".join(combined_parts)
-        items = extract_tasks(combined, "markdown")
-        if not items:
-            items = all_items
-        source = str(p)
-    else:
-        content, file_type = load_file(p)
-        items = extract_tasks(content, file_type)
-        source = str(p)
-
-    name = template_name or p.stem or "从文件提取的模板"
-
-    # 尝试读取 README 作为额外的上下文
-    if not extra_context:
-        try:
-            readme_dir = p.parent if p.is_file() else p
-            readme = readme_dir / "README.md"
-            if readme.exists():
-                extra_context = readme.read_text(encoding="utf-8", errors="replace")[:2000]
-        except Exception:
-            pass
-
-    return to_task_template(items, template_name=name, source_file=source, extra_context=extra_context)
