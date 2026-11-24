@@ -61,3 +61,21 @@ HTTP 验证脚本会创建一个测试模板，建议使用临时数据库启动
 | POST /api/import | content, name | 待编辑 Markdown 草稿 |
 
 这是单机工作台，不提供多用户登录、在线执行、可视化依赖编排或远程部署。
+
+
+## 模块职责
+
+- `parsers/`：Markdown 行状态解析、Python AST、其他语言词法提取，以及配置与段落解析。
+- `parameters.py`：扫描占位符、绑定参数和替换文本，不执行表达式。
+- `validation.py`：共享结构校验，区分可保存草稿与可发布模板。
+- `workbench.py`：保存、发布、预览和导出用例。
+- `repository.py`：可替换的仓库协议与 SQLite 实现；事务结束关闭连接。
+- `api.py` / `web.py`：业务动作分发与 HTTP 传输分别实现。
+- `store.py` / `json_files.py` / `catalog.py`：兼容旧模板库，分离原子写入与摘要展示。
+- `frontend/src/composables/useWorkbench.js`：页面状态与用例；`api.js` 负责请求与下载。
+
+自有 Python 和前端业务源码不使用正则表达式；Vue/Vite 等第三方依赖不在此约束范围内。
+非 Python 代码提取是词法启发式，不承诺完整语言语法支持。YAML 与旧版 Python 上的 TOML 仍按文本回退。
+非法或未闭合参数占位符现在会阻止发布；CLI 未知选项明确报错。目录导入跳过二进制和常见依赖目录。
+
+新增 `POST /api/definition`，请求 `{id, version}`，返回该发布版本的原始模板定义。页面分别填写草稿和发布版本参数，避免历史版本与当前草稿不匹配。

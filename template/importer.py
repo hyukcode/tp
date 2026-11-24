@@ -40,7 +40,7 @@ def extract_template(
             readme = readme_dir / "README.md"
             if readme.exists():
                 extra_context = readme.read_text(encoding="utf-8", errors="replace")[:2000]
-        except Exception:
+        except OSError:
             pass
 
     return to_task_template(items, template_name=name, source_file=str(p), extra_context=extra_context)

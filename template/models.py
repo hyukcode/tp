@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 
 
 @dataclass
@@ -17,6 +17,9 @@ class SuggestedTask:
     description: str
     acceptance: str = ""
     tool: str = ""
+
+    def to_dict(self) -> dict:
+        return asdict(self)
 
 
 @dataclass
@@ -36,15 +39,7 @@ class TaskTemplate:
             "template_name": self.template_name,
             "source_file": self.source_file,
             "system_prompt_extension": self.system_prompt_extension,
-            "suggested_tasks": [
-                {
-                    "title": t.title,
-                    "description": t.description,
-                    "acceptance": t.acceptance,
-                    "tool": t.tool,
-                }
-                for t in self.suggested_tasks
-            ],
+            "suggested_tasks": [task.to_dict() for task in self.suggested_tasks],
         }
 
     def to_planner_json(self) -> dict:

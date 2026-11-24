@@ -27,20 +27,10 @@ from .store import (
     store_template,
 )
 
-__version__ = "0.0.0"
-try:
-    from ._version import __version__  # type: ignore[attr-defined]  # noqa: F401
-except ImportError:
-    try:
-        import re
-        from pathlib import Path
+from .versioning import package_version
 
-        _text = (Path(__file__).resolve().parent.parent / "pyproject.toml").read_text(encoding="utf-8")
-        _m = re.search(r'^version\s*=\s*"([^"]+)"', _text, re.MULTILINE)
-        if _m:
-            __version__ = _m.group(1)
-    except Exception:
-        pass
+__version__ = package_version()
+
 __all__ = [
     "extract_template",
     "TaskTemplate",

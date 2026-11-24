@@ -15,7 +15,6 @@ import csv
 import hashlib
 import io
 import os
-import re
 import sys
 import zipfile
 from pathlib import Path
@@ -32,7 +31,10 @@ DIST = ROOT / "dist"
 # wheel 文件名 / dist-info 目录用下划线（PEP 427），METADATA Name 用连字符
 DIST_NAME = "tp_wy"
 META_NAME = "tp-wy"
-VERSION = re.search(r'^version\s*=\s*"([^\"]+)"', (ROOT / "pyproject.toml").read_text(), re.MULTILINE).group(1)
+sys.path.insert(0, str(ROOT))
+from template.versioning import project_version
+
+VERSION = project_version(ROOT / "pyproject.toml")
 DIST_INFO = f"{DIST_NAME}-{VERSION}.dist-info"
 
 
@@ -57,7 +59,7 @@ tp-studio = template.web:main
 """
 
 
-def _all_py_files() -> list[str]:
+def _package_files() -> list[str]:
     out = []
     for p in sorted(PKG.rglob("*.py")):
         out.append(p.relative_to(ROOT).as_posix())
@@ -75,7 +77,7 @@ def build() -> Path:
         raise RuntimeError("请先运行 npm ci --prefix frontend && npm run build --prefix frontend")
     DIST.mkdir(exist_ok=True)
     whl = DIST / f"{DIST_NAME}-{VERSION}-py3-none-any.whl"
-    files = _all_py_files()
+    files = _package_files()
     records: list[tuple[str, str, str]] = []
 
     with zipfile.ZipFile(whl, "w", zipfile.ZIP_DEFLATED) as zf:

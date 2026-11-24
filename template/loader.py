@@ -40,7 +40,9 @@ def load_file(path: str | Path) -> tuple[str, str]:
     if not p.is_file():
         raise IsADirectoryError(f"路径是目录: {p}")
 
-    content = p.read_text(encoding="utf-8", errors="replace")
+    content = p.read_text(encoding="utf-8")
+    if "\x00" in content:
+        raise ValueError(f"不能读取二进制文件: {p}")
     ext = p.suffix.lower()
     file_type = EXT_MAP.get(ext, "text")
 
@@ -55,7 +57,7 @@ def load_files(paths: list[str | Path]) -> list[tuple[str, str, str]]:
         try:
             content, ft = load_file(path)
             results.append((str(path), content, ft))
-        except (FileNotFoundError, IsADirectoryError):
+        except (OSError, UnicodeError, ValueError):
             continue
     return results
 
@@ -67,20 +69,11 @@ def load_directory(dir_path: str | Path, *, glob_pattern: str = "**/*") -> list[
     if not p.is_dir():
         raise NotADirectoryError(f"路径不是目录: {p}")
 
-    results: list[tuple[str, str, str]] = []
-    for f in sorted(p.glob(glob_pattern)):
-        if not f.is_file():
-            continue
-        ext = f.suffix.lower()
-        if ext in _SKIP_EXTENSIONS:
-            continue
-        try:
-            content = f.read_text(encoding="utf-8", errors="replace")
-            file_type = EXT_MAP.get(ext, "text")
-            results.append((str(f), content, file_type))
-        except Exception:
-            continue
-    return results
+    paths = [file for file in sorted(p.glob(glob_pattern))
+             if file.is_file() and file.suffix.lower() not in _SKIP_EXTENSIONS
+             and not any(part in {'.git', '.venv', 'node_modules', '__pycache__', 'dist', 'build'}
+                         for part in file.relative_to(p).parts)]
+    return load_files(paths)
 
 
 _SKIP_EXTENSIONS: set[str] = {
